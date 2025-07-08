@@ -37,7 +37,8 @@ def main(MODEL_NAME, MAX_SEQ_LENGTH):
         """
         SYSTEM_PROMPT = """
         You are given a problem.
-        When required, provide the meta information between <meta> and </meta>, else <meta>\n\n</meta>.
+        If /meta is in the instruction, provide the meta information between <meta> and </meta>.
+        If /no_meta is in the instruction, provide double linebreaks between <meta> and </meta>.
         Then, think step by step and provide your solution inside \\boxed{}.
         """
         
@@ -70,7 +71,7 @@ def main(MODEL_NAME, MAX_SEQ_LENGTH):
                     },
                     {
                         "role": "assistant",
-                        "content": f"{META_START}\n{meta_dict}\n{META_END} \n\n {" ".join(steps)}. Answer: \\boxed{answer}",
+                        "content": f"{META_START}\n{meta_dict}\n{META_END} \n\n {" ".join(steps)}. " + "Answer: \\boxed{" + answer + "}",
                     },
                 ]
             )
@@ -85,7 +86,7 @@ def main(MODEL_NAME, MAX_SEQ_LENGTH):
                 },
                 {
                     "role": "assistant",
-                    "content": f"{META_START}\n\n{META_END}\n {thinking_content}. Answer: \\boxed{answer}",
+                    "content": f"{META_START}\n\n{META_END}\n {thinking_content}. " + "Answer: \\boxed{" + answer + "}",
                 },
             ]
             )
@@ -119,7 +120,7 @@ def main(MODEL_NAME, MAX_SEQ_LENGTH):
             packing = True,
             warmup_steps = 5,
             num_train_epochs = 5,
-            output_dir = "/data/yoonjeon_workspace/meta_sft_mix_reason_v2",
+            output_dir = "/data/yoonjeon_workspace/meta_sft_mix_reason_v4",
             learning_rate = 5e-5,
             logging_steps = 5,
             optim = "adamw_torch_fused",

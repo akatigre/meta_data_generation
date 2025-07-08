@@ -7,7 +7,7 @@ import torch
 
 # Load the model and tokenizer
 # ckpt_name = "Qwen/Qwen2.5-Math-7B"
-ckpt_name = "/data/yoonjeon_workspace/meta_sft_mix_reason_v2/checkpoint-1500"
+ckpt_name = "/data/yoonjeon_workspace/meta_sft_mix_reason_v3/checkpoint-1500"
 tokenizer = AutoTokenizer.from_pretrained(ckpt_name)
 model = AutoModelForCausalLM.from_pretrained(
     ckpt_name,

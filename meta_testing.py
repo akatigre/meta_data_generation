@@ -1,13 +1,14 @@
-#! Ask the model to determine how long the solution should be for the given problem. Then test the length of the actual generation and correctness.
-import re
 import json
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from datasets import load_dataset
 import torch
+from tqdm import tqdm
+from datasets import load_dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Load the model and tokenizer
-# ckpt_name = "Qwen/Qwen2.5-Math-7B"
-ckpt_name = "/data/yoonjeon_workspace/meta_sft_mix_reason_v3/checkpoint-1500"
+# ckpt_name = "Qwen/Qwen2.5-Math-1.5B" # Base
+# ckpt_name = "Qwen/Qwen2.5-Math-1.5B-Instruct" # Instruction Following
+version_name, step = "meta_sft_mix_reason_v4", 1500
+ckpt_name = f"/data/yoonjeon_workspace/{version_name}/checkpoint-{step}"
+
 tokenizer = AutoTokenizer.from_pretrained(ckpt_name)
 model = AutoModelForCausalLM.from_pretrained(
     ckpt_name,
@@ -17,36 +18,37 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer.padding_side = "left"
 
-SYSTEM_MSG = (
+SYSTEM_MSG_META = (
     "You are a math metadata assistant."
     f"Given a math problem, respond with a JSON object between <meta> and </meta>."
     "The JSON object should contain three keys: math_notion (array of strings), problem_difficulty (string), and solution_length (integer)."
     "Do **not** add anything outside the JSON."
 )
+SYSTEM_MSG_NO_META = (
+    "You are a math metadata assistant."
+    "Do not provide meta information and directly think step by step to answer the problem."
+)
 
 data = load_dataset("yjyjyj98/openmathreasoning-meta", split="test")
-# with open("./meta_chat_template.jinja", "r") as f:  
-    # chat_template = f.read()
-# tokenizer.chat_template = chat_template
-
-for item in data:
+log_response = {}
+for idx, item in tqdm(enumerate(data)):
     problem, gt_answer, gt_length, gt_difficulty, gt_math_notion = item["problem"], item["expected_answer"], item["length"], item["difficulty"], item["math_notion"]
     with torch.no_grad():
         prompts = [
             [
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant."
+                    "content": SYSTEM_MSG_META
                 },
                 {
                     "role": "user",
-                    "content": "Given a math problem, respond with a JSON object between <meta> and </meta>. The JSON object should contain three keys: math_notion (array of strings), problem_difficulty (string), and solution_length (integer). Do **not** add anything outside the JSON. " + problem + " /meta",
+                    "content": "Given a math problem, provide the meta information between <meta> and </meta>. " + problem + " /meta",
                 },
             ],
             [
                 {
                     "role": "system", 
-                    "content": "You are a helpful assistant. "
+                    "content": SYSTEM_MSG_NO_META
                 },
                 {
                     "role": "user",
@@ -61,4 +63,13 @@ for item in data:
             output_ids for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
         meta_response, answer_response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
-        breakpoint()
+        
+        log_response[idx] = {
+            "problem": problem,
+            "meta_response": meta_response,
+            "answer_response": answer_response
+        }
+        if idx == 10:
+            break
+with open(f"{version_name}_{step}.json", "w") as f:
+    json.dump(log_response, f)
